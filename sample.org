@@ -1,0 +1,11 @@
+  
+#+BEGIN_SRC emacs-lisp
+  (defun mwe (x)
+    "A minimal function.
+  ,* This tests whether Org auto-escapes.
+  ,,* This too."
+    (cond 
+     (x (message "x is non-nil"))
+     (t (message "x is nil")))
+    t)
+#+END_SRC
