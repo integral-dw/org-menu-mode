@@ -2,11 +2,34 @@
 
 * WARNING
   This package is under construction.  Once again, I am busy working
-  out the kinks.  Any function and variable defined here *is subject to
+  out the kinks.  *Any function and variable defined here *is subject to
   change* until version 1.0.0, from which point on I will try my best
   not to inconvenience people.  See below for announcements regarding
   the current state of affairs.
 
+  *Remark:* This package is not yet in what I would consider a complete
+  first draft state.  It's not like /nothing/ works right now, but not
+  much.  It will take a little while before this package is even
+  usable for testing purposes.
+
 * NEWS
+** =2019-02-23=
+   The project is now public.  The package is not yet in a working
+   first draft state, but it compiles, survives ~checkdoc~'s scrutiny
+   and runs through ~package-lint~ without problem.  Now I just have to
+   keep it that way.
 
 * About
+** Origins
+  This package is [[https://pank.eu/blog/pretty-babel-src-blocks.html][based on a brilliant blog post from Rasmus Pank]],
+  where he formulated a ~prettify-symbols~-based set of functions that
+  hide away Org's ~#+BEGIN_BLOCK~ -- ~#+END_BLOCK~ syntax behind a
+  [[https://en.wikipedia.org/wiki/Semigraphics][semi-graphical]] interface.  The author expressed dissatisfaction with
+  the limitations of ~prettify-symbols-mode~, such as being restricted
+  to literal matches (as opposed to regex).  This inspired me to take
+  a closer look at how Prettify Symbols is actually implemented within
+  ~font-lock~, and how I can make use of it's principles while still
+  being able to diverge from it.
+
+
+#  LocalWords:  MELPA ELPA Worg fontification TODO README Org's
