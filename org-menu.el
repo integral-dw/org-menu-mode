@@ -40,6 +40,8 @@
   "Hide Org syntax behind interactive menus."
   :group 'org-appearance)
 
+;;;; Custom Variables
+
 (defcustom org-menu-src-default ?🖉
   "Default menu icon for Org source code blocks."
   :group 'org-menu
@@ -64,49 +66,97 @@ instead."
   :type `(alist :key-type (string :format "Language name: %v")
                 :value-type (character :value ,org-menu-src-default
                                        :format "Menu icon: %v\n")))
-
-;;; Accessor Functions
-
-(defun org-menu--get-src-icon ()
-  "Return the desired menu icon for the current Org source code block.
-
-This function returns the desired icon from ‘org-menu-src-alist’,
-if specified.  If the selected language has no user-defined icon,
-‘org-menu-src-default’ is used instead."
-  (let ((lang (match-string 1)))
-    (or (cdr (assoc-string lang org-menu-src-alist t))
-        org-menu-src-default)))
 
 
-;;; Text Properties and Manipulation
+;;;; Text Properties and Manipulation
+;; Here we define the lower level routines operating directly on text
+;; properties.
 
+(defvar org-menu--extra-props
+  '(org-menu-region org-menu-include-eol)
+  "List of text properties for Org Menu mode’s font lock internals.")
+
+;;; Local State Variables
 (defvar-local org-menu--active-region nil
   "Holds the delimiters of the region composed by Org Menu at point.
 
 If point does not reside in any composed region, it’s value is
-nil.  Otherwise, it’s value is a cons cell of the form:
+nil.  Otherwise, it’s value is a list of the form:
 
-  (START . END)
+  (START END . META-PLIST)
 
 where START and END delimit the affected region.
 
+META-PLIST is a property list holding additional information
+about the current region.
+
 This variable is necessary because the \"true\" position of point
-is not accessible from within font-lock.
+is not accessible from within font-lock.")
 
-This variable is used internally by
-‘org-menu--compose-region-p’.")
+;;; Getters and Setters for the Active Region
+(defun org-menu--active-region-start ()
+  "Return the beginning of the active region."
+  (car org-menu--active-region))
 
-(defvar org-menu--extra-props
-  '(org-menu-region)
-  "List of text properties for Org Menu mode’s font lock internals.")
+(defun org-menu--active-region-end ()
+  "Return the end of the active region."
+  (cadr org-menu--active-region))
 
-(defun org-menu--mark-composed (start end)
+(defun org-menu--set-active-region ()
+  "If point is in an Org Menu composed region, make it active.
+If no region could be found, return nil.  Otherwise, return a
+list of the form (START END), containing the delimiting points of
+the region found."
+  ;; NOTE: This package is not made for single-char matches.
+  ;; Consequently, there is no need to look at eol's face props.
+  (let* ((pos (if (and (eolp) (not (bobp)))
+                  (1- (point)) (point)))
+         (new-region (get-text-property pos 'org-menu-region))
+         (include-eol (get-text-property pos 'org-menu-include-eol)))
+    (when new-region
+      (setq org-menu--active-region
+            (append new-region
+                    `(include-eol ,include-eol)))
+    new-region)))
+
+(defun org-menu--get-prop (property)
+  "Return the value of PROPERY stored in the active region.
+
+PROPERTY should be an optional argument name of the function
+‘org-menu--mark-composed’, as a symbol."
+  (plist-get (cddr org-menu--active-region) property))
+
+;;; Active Region Predicates
+(defun org-menu--active-region-p (start end)
+  "Return t if the region between START and END is active."
+  (and org-menu--active-region
+       (= start (org-menu--active-region-start))
+       (= end (org-menu--active-region-end))))
+
+(defun org-menu--outside-active-region-p ()
+  "Return t if point is not in the active region.
+If there is no active region, return nil."
+  (let ((start (org-menu--active-region-start))
+        (end (org-menu--active-region-end)))
+    (and org-menu--active-region
+         (if (and (eolp) (org-menu--get-prop 'include-eol))
+             (not (<= start (1- (point)) end))
+           (not (<= start (point) end))))))
+
+;;; Manipulating the Region
+
+(defun org-menu--mark-composed (start end &optional include-eol)
   "Mark region as composed by Org Menu mode.
 
 START and END are positions (integers or markers) specifying the
-region."
+region.  If the optional argument INCLUDE-EOL is non-nil, and END
+extends to the end of the line, the region will be decomposed
+even when point is immediately after the line, much like when
+setting ‘prettify-symbols-unprettify-at-point’ to ‘right-edge’."
   (add-text-properties start end
-                       `(org-menu-region ,(cons start end))))
+                       `(org-menu-region ,(list start end)))
+  (when include-eol
+    (add-text-properties start end '(org-menu-include-eol t))))
 
 (defun org-menu--unmark (start end)
   "Remove markers set by Org Menu mode in region.
@@ -120,19 +170,17 @@ specifying the region."
   "Update the active region.
 If point left the currently active region, update internal
 variables and notify font-lock."
-  (let ((start (car org-menu--active-region))
-        (end (cdr org-menu--active-region)))
-    (when (and org-menu--active-region
-               (not (<= start (point) end)))
+  (let ((start (org-menu--active-region-start))
+        (end (org-menu--active-region-end)))
+    (when (org-menu--outside-active-region-p)
       ;; We left the region, it's no longer active.
       (setq org-menu--active-region nil)
       ;; Let font-lock recompose the region.
       (font-lock-flush start end)))
-  ;; TODO: Check what happens when you don't update when you don't
-  ;; leave the region.
-  (when-let* ((new-region (get-text-property (point) 'org-menu-region)))
-    (setq org-menu--active-region new-region)
-    (decompose-region (car new-region) (cdr new-region))))
+  ;; TODO: Check what happens when you don't update but stay in the
+  ;; region.
+  (when-let ((new-region (org-menu--set-active-region)))
+    (apply #'decompose-region new-region)))
 
 (defun org-menu--remove-props ()
   "Remove all references to Org Menu related text properties in buffer."
@@ -142,20 +190,19 @@ variables and notify font-lock."
   (org-menu--unmark (point-min) (point-max)))
 
 
-;;; Predicates
+;;;; Menu Icons and Fontification
+;; Here we define the higher level routines dealing with the actual
+;; composition of the menus.
 
-(defun org-menu-in-src-block-p ()
-  "Return t if point is in an Org source code block."
-  (save-match-data
-    (when (memq
-           (org-element-type (org-element-context))
-           '(inline-src-block src-block))
-      t)))
+(defun org-menu--get-src-icon ()
+  "Return the desired menu icon for the current Org source code block.
 
-(defun org-menu--compose-region-p (start end)
-  "Return t if region between START and END should be composed."
-  (not (equal (cons start end)
-              org-menu--active-region)))
+This function returns the desired icon from ‘org-menu-src-alist’,
+if specified.  If the selected language has no user-defined icon,
+‘org-menu-src-default’ is used instead."
+  (let ((lang (match-string 1)))
+    (or (cdr (assoc-string lang org-menu-src-alist t))
+        org-menu-src-default)))
 
 
 ;;; Fontification
@@ -172,18 +219,29 @@ on that line."
         (lang-end (match-end 2))
         (end (match-end 0)))
     (cond
-     ((org-menu--compose-region-p delim-beg end)
+     ;; A match at point?  Throw all composition out the window.
+     ((org-menu--active-region-p delim-beg end)
+      (decompose-region start end)
+      (org-menu--unmark start end))
+     (t
       (compose-region delim-beg delim-end (org-menu--get-src-icon))
       (compose-region delim-end lang-beg ?\s)
       (when (/= lang-end end)
         (compose-region lang-end end org-menu-symbol))
       ;; Bolt text props onto region.
-      (org-menu--mark-composed delim-beg end))
-     ;; A match at point?  Throw all composition out the window.
-     (t
-      (decompose-region start end)
-      (org-menu--unmark start end))))
+      (org-menu--mark-composed delim-beg end))))
   nil)
+
+
+;;; Predicates
+
+(defun org-menu-in-src-block-p ()
+  "Return t if point is in an Org source code block."
+  (save-match-data
+    (when (memq
+           (org-element-type (org-element-context))
+           '(inline-src-block src-block))
+      t)))
 
 
 ;;; Font Lock
@@ -193,7 +251,7 @@ on that line."
   (concat "^\\(?:[ \t]*\\)" ;; indentation
           "\\(?1:#\\+\\(begin_src\\|BEGIN_SRC\\)\\)"  ;; delimiter
           "\\(?:[ \t]+\\)" ;; garbage
-          "\\(?2:\\S-+\\)" ;; language name
+          "\\(?2:\\S-+\\s?\\)" ;; language name
           "\\(?3:.*\\)$") ;; rest
   "Regular expression used to identify Org source code blocks.")
 
@@ -216,7 +274,6 @@ cleanup routines."
       (widen)
       (font-lock-ensure)
       (font-lock-flush))))
-
 
 ;;; Mode commands
 ;;;###autoload
