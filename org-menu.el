@@ -137,11 +137,18 @@ PROPERTY should be an optional argument name of the function
   "Return t if point is not in the active region.
 If there is no active region, return nil."
   (let ((start (org-menu--active-region-start))
-        (end (org-menu--active-region-end)))
+        (end (org-menu--active-region-end))
+        (pos (point)))
+    ;; Here we only cover the case moving from the active region to
+    ;; EOL.  Entering an active region via EOL is governed by
+    ;; ‘org-menu--set-active-region’.
+
+    ;; This does not work yet.  The region information must be updated
+    ;; when writing on the same line.
+    (when (and (eolp) (org-menu--get-prop 'include-eol))
+      (setq pos (1- pos)))
     (and org-menu--active-region
-         (if (and (eolp) (org-menu--get-prop 'include-eol))
-             (not (<= start (1- (point)) end))
-           (not (<= start (point) end))))))
+         (not (<= start pos end)))))
 
 ;;; Manipulating the Region
 
@@ -201,7 +208,7 @@ variables and notify font-lock."
 This function returns the desired icon from ‘org-menu-src-alist’,
 if specified.  If the selected language has no user-defined icon,
 ‘org-menu-src-default’ is used instead."
-  (let ((lang (match-string 1)))
+  (let ((lang (match-string 2)))
     (or (cdr (assoc-string lang org-menu-src-alist t))
         org-menu-src-default)))
 
@@ -217,7 +224,7 @@ on that line."
         (delim-beg (match-beginning 1))
         (delim-end (match-end 1))
         (lang-beg (match-beginning 2))
-        (lang-end (match-end 2))
+        (rest-beg (match-beginning 3))
         (end (match-end 0)))
     (cond
      ;; A match at point?  Throw all composition out the window.
@@ -227,8 +234,8 @@ on that line."
      (t
       (compose-region delim-beg delim-end (org-menu--get-src-icon))
       (compose-region delim-end lang-beg ?\s)
-      (when (/= lang-end end)
-        (compose-region lang-end end org-menu-symbol))
+      (when (< rest-beg end)
+        (compose-region rest-beg end org-menu-symbol))
       ;; Bolt text props onto region.
       (org-menu--mark-composed delim-beg end))))
   nil)
@@ -252,8 +259,8 @@ on that line."
   (concat "^\\(?:[ \t]*\\)" ;; indentation
           "\\(?1:#\\+\\(begin_src\\|BEGIN_SRC\\)\\)"  ;; delimiter
           "\\(?:[ \t]+\\)" ;; garbage
-          "\\(?2:\\S-+[ \t]?\\)" ;; language name
-          "\\(?3:.*\\)$") ;; rest
+          "\\(?2:\\S-+\\)" ;; language name
+          "[ \t]?\\(?3:.*\\)$") ;; rest
   "Regular expression used to identify Org source code blocks.")
 
 (defvar-local org-menu--font-lock-keywords nil)
