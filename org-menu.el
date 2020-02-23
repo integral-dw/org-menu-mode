@@ -251,7 +251,7 @@ on that line."
   (concat "^\\(?:[ \t]*\\)" ;; indentation
           "\\(?1:#\\+\\(begin_src\\|BEGIN_SRC\\)\\)"  ;; delimiter
           "\\(?:[ \t]+\\)" ;; garbage
-          "\\(?2:\\S-+\\s?\\)" ;; language name
+          "\\(?2:\\S-+\\s-?\\)" ;; language name
           "\\(?3:.*\\)$") ;; rest
   "Regular expression used to identify Org source code blocks.")
 
