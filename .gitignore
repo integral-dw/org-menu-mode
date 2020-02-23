@@ -3,3 +3,4 @@
 .#*
 .dir-locals.el
 rasmus-orig.el
+ps*.el
