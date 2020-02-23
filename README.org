@@ -1,1 +1,12 @@
 #+TITLE: Org Menu Mode
+
+* WARNING
+  This package is under construction.  Once again, I am busy working
+  out the kinks.  Any function and variable defined here *is subject to
+  change* until version 1.0.0, from which point on I will try my best
+  not to inconvenience people.  See below for announcements regarding
+  the current state of affairs.
+
+* NEWS
+
+* About
