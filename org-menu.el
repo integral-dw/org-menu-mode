@@ -180,7 +180,8 @@ variables and notify font-lock."
   ;; TODO: Check what happens when you don't update but stay in the
   ;; region.
   (when-let ((new-region (org-menu--set-active-region)))
-    (apply #'decompose-region new-region)))
+    (with-silent-modifications
+      (apply #'decompose-region new-region))))
 
 (defun org-menu--remove-props ()
   "Remove all references to Org Menu related text properties in buffer."
@@ -251,7 +252,7 @@ on that line."
   (concat "^\\(?:[ \t]*\\)" ;; indentation
           "\\(?1:#\\+\\(begin_src\\|BEGIN_SRC\\)\\)"  ;; delimiter
           "\\(?:[ \t]+\\)" ;; garbage
-          "\\(?2:\\S-+\\s-?\\)" ;; language name
+          "\\(?2:\\S-+[ \t]?\\)" ;; language name
           "\\(?3:.*\\)$") ;; rest
   "Regular expression used to identify Org source code blocks.")
 
