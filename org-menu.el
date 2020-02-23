@@ -1,4 +1,4 @@
-;;; org-menu.el --- Hide verbose org syntax behind interactive menus.  -*- lexical-binding: t; -*-
+;;; org-menu.el --- Hide verbose org syntax behind interactive menus  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2020  D. Williams, Rasmus Pank
 
@@ -109,7 +109,7 @@ region."
                        `(org-menu-region ,(cons start end))))
 
 (defun org-menu--unmark (start end)
-  "Remove marks set by Org Menu mode in region.
+  "Remove markers set by Org Menu mode in region.
 
 START and END are positions (integers or markers)
 specifying the region."
@@ -118,7 +118,8 @@ specifying the region."
 
 (defun org-menu--update-region ()
   "Update the active region.
-If point left the currently active region, "
+If point left the currently active region, update internal
+variables and notify font-lock."
   (let ((start (car org-menu--active-region))
         (end (cdr org-menu--active-region)))
     (when (and org-menu--active-region
@@ -166,21 +167,22 @@ The menu is unprettified automatically when the user is working
 on that line."
   (let ((start (match-beginning 0))
         (delim-beg (match-beginning 1))
+        (delim-end (match-end 1))
         (lang-beg (match-beginning 2))
         (lang-end (match-end 2))
         (end (match-end 0)))
     (cond
      ((org-menu--compose-region-p delim-beg end)
-      (compose-region src-beg src-end (org-menu--get-src-icon))
-      (compose-region src-end lang-beg ?\s)
+      (compose-region delim-beg delim-end (org-menu--get-src-icon))
+      (compose-region delim-end lang-beg ?\s)
       (when (/= lang-end end)
         (compose-region lang-end end org-menu-symbol))
       ;; Bolt text props onto region.
-      (org-menu--mark-composed start end)
+      (org-menu--mark-composed delim-beg end))
      ;; A match at point?  Throw all composition out the window.
      (t
       (decompose-region start end)
-      (org-menu--unmark start end)))))
+      (org-menu--unmark start end))))
   nil)
 
 
