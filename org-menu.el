@@ -182,8 +182,8 @@ variables and notify font-lock."
     (when (org-menu--outside-active-region-p)
       ;; We left the region, it's no longer active.
       (setq org-menu--active-region nil)
-      ;; Let font-lock recompose the region.
-      (font-lock-flush start end)))
+      ;; Let font-lock recompose the region immediately.
+      (org-menu--fontify-buffer start end)))
   ;; TODO: Check what happens when you don't update but stay in the
   ;; region.
   (when-let ((new-region (org-menu--set-active-region)))
@@ -275,13 +275,15 @@ cleanup routines."
           ;; TODO: more later.
           )))
 
-(defun org-menu--fontify-buffer ()
-  "Fontify the buffer."
+(defun org-menu--fontify-buffer (&optional start end)
+  "Fontify the buffer in region START...END.
+If the region is not specified, it defaults to the entire
+accessible region of the buffer."
   (when font-lock-mode
     (save-restriction
       (widen)
-      (font-lock-ensure)
-      (font-lock-flush))))
+      (font-lock-flush start end)
+      (font-lock-ensure start end))))
 
 ;;; Mode commands
 ;;;###autoload
