@@ -73,7 +73,7 @@ instead."
 ;; properties.
 
 (defvar org-menu--extra-props
-  '(org-menu-region org-menu-include-eol)
+  '(org-menu-region org-menu-right-edge)
   "List of text properties for Org Menu mode’s font lock internals.")
 
 ;;; Local State Variables
@@ -107,17 +107,23 @@ is not accessible from within font-lock.")
 If no region could be found, return nil.  Otherwise, return a
 list of the form (START END), containing the delimiting points of
 the region found."
-  ;; NOTE: This package is not made for single-char matches.
-  ;; Consequently, there is no need to look at eol's face props.
-  (let* ((pos (if (and (eolp) (not (bobp)))
-                  (1- (point)) (point)))
+  (let* ((pos (point))
          (new-region (get-text-property pos 'org-menu-region))
-         (include-eol (get-text-property pos 'org-menu-include-eol)))
+         (right-edge nil))
+    ;; If there's no region at point, check the character before.
+    (unless (or new-region (bobp))
+      (message "checking for right edge..")
+      (setq pos (1- pos))
+      (when (setq right-edge ;; Is it a right-edge region?
+                  (get-text-property pos 'org-menu-right-edge))
+        (message "right edge found!")
+        (setq new-region (get-text-property pos 'org-menu-region)
+              right-edge t)))
     (when new-region
+      (message "new region: %s %s" pos (point))
       (setq org-menu--active-region
-            (append new-region
-                    `(include-eol ,include-eol)))
-    new-region)))
+            `(,@new-region right-edge ,right-edge)))
+    new-region))
 
 (defun org-menu--get-prop (property)
   "Return the value of PROPERY stored in the active region.
@@ -128,42 +134,49 @@ PROPERTY should be an optional argument name of the function
 
 ;;; Active Region Predicates
 (defun org-menu--active-region-p (start end)
-  "Return t if the region between START and END is active."
-  (and org-menu--active-region
-       (= start (org-menu--active-region-start))
-       (= end (org-menu--active-region-end))))
+  "Return t if the region START...END is active.
+If the region has overlap with the active region, treat the whole
+region as active."
+  (message "region 1: (%s %s)" start end)
+  (message "region 2: (%s %s)"
+           (org-menu--active-region-start)
+           (org-menu--active-region-end))
+  (when (and org-menu--active-region
+             ;; [a,b] and [c,d] overlap if and only if
+             ;; a <= d and b >= c
+             (<= start (org-menu--active-region-end))
+             (>= end (org-menu--active-region-start)))
+    (message "active region!")))
 
-(defun org-menu--outside-active-region-p ()
+(defun org-menu--point-outside-active-region-p ()
   "Return t if point is not in the active region.
 If there is no active region, return nil."
   (let ((start (org-menu--active-region-start))
         (end (org-menu--active-region-end))
         (pos (point)))
-    ;; Here we only cover the case moving from the active region to
-    ;; EOL.  Entering an active region via EOL is governed by
-    ;; ‘org-menu--set-active-region’.
-
-    ;; This does not work yet.  The region information must be updated
-    ;; when writing on the same line.
-    (when (and (eolp) (org-menu--get-prop 'include-eol))
+    (when (and (org-menu--get-prop 'right-edge)
+               (> pos start))
       (setq pos (1- pos)))
     (and org-menu--active-region
          (not (<= start pos end)))))
 
 ;;; Manipulating the Region
 
-(defun org-menu--mark-composed (start end &optional include-eol)
+(defun org-menu--mark-composed (start end &optional right-edge)
   "Mark region as composed by Org Menu mode.
 
 START and END are positions (integers or markers) specifying the
-region.  If the optional argument INCLUDE-EOL is non-nil, and END
-extends to the end of the line, the region will be decomposed
-even when point is immediately after the line, much like when
-setting ‘prettify-symbols-unprettify-at-point’ to ‘right-edge’."
+region.
+
+If the optional argument RIGHT-EDGE is non-nil, the region will
+be decomposed even when point is immediately after the match,
+much like when setting ‘prettify-symbols-unprettify-at-point’ to
+‘right-edge’.  The only exception to this behavior occurs when
+the right edge belongs to another marked region."
   (add-text-properties start end
                        `(org-menu-region ,(list start end)))
-  (when include-eol
-    (add-text-properties start end '(org-menu-include-eol t))))
+  (when right-edge
+    (add-text-properties start end '(org-menu-right-edge t))))
 
 (defun org-menu--unmark (start end)
   "Remove markers set by Org Menu mode in region.
@@ -177,16 +190,19 @@ specifying the region."
   "Update the active region.
 If point left the currently active region, update internal
 variables and notify font-lock."
+  (message "updating..")
   (let ((start (org-menu--active-region-start))
         (end (org-menu--active-region-end)))
-    (when (org-menu--outside-active-region-p)
+    (when (org-menu--point-outside-active-region-p)
+      (message "left region.")
       ;; We left the region, it's no longer active.
       (setq org-menu--active-region nil)
       ;; Let font-lock recompose the region immediately.
-      (org-menu--fontify-buffer start end)))
-  ;; TODO: Check what happens when you don't update but stay in the
-  ;; region.
+      (org-menu--fontify-buffer start end))
+    (message "update end."))
+
   (when-let ((new-region (org-menu--set-active-region)))
+    (message "new region found.")
     (with-silent-modifications
       (apply #'decompose-region new-region))))
 
@@ -212,7 +228,6 @@ if specified.  If the selected language has no user-defined icon,
     (or (cdr (assoc-string lang org-menu-src-alist t))
         org-menu-src-default)))
 
-
 ;;; Fontification
 
 (defun org-menu--prettify-src-begin ()
@@ -226,18 +241,21 @@ on that line."
         (lang-beg (match-beginning 2))
         (rest-beg (match-beginning 3))
         (end (match-end 0)))
+    (message "font locking")
     (cond
      ;; A match at point?  Throw all composition out the window.
      ((org-menu--active-region-p delim-beg end)
+      (message "decompose!")
       (decompose-region start end)
       (org-menu--unmark start end))
      (t
+      (message "compose!")
       (compose-region delim-beg delim-end (org-menu--get-src-icon))
       (compose-region delim-end lang-beg ?\s)
       (when (< rest-beg end)
         (compose-region rest-beg end org-menu-symbol))
       ;; Bolt text props onto region.
-      (org-menu--mark-composed delim-beg end))))
+      (org-menu--mark-composed delim-beg end t))))
   nil)
 
 
@@ -292,7 +310,7 @@ accessible region of the buffer."
 With a prefix argument ARG, enable Org Menu mode if ARG is
 positive, and disable it otherwise.  If called from Lisp, enable
 the mode if ARG is omitted or nil."
-  nil " >_" nil
+  nil " Menu" nil
   :group 'org-menu
   :require 'org
   (cond
