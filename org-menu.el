@@ -112,15 +112,12 @@ the region found."
          (right-edge nil))
     ;; If there's no region at point, check the character before.
     (unless (or new-region (bobp))
-      (message "checking for right edge..")
       (setq pos (1- pos))
       (when (setq right-edge ;; Is it a right-edge region?
                   (get-text-property pos 'org-menu-right-edge))
-        (message "right edge found!")
         (setq new-region (get-text-property pos 'org-menu-region)
               right-edge t)))
     (when new-region
-      (message "new region: %s %s" pos (point))
       (setq org-menu--active-region
             `(,@new-region right-edge ,right-edge)))
     new-region))
@@ -137,16 +134,11 @@ PROPERTY should be an optional argument name of the function
   "Return t if the region START...END is active.
 If the region has overlap with the active region, treat the whole
 region as active."
-  (message "region 1: (%s %s)" start end)
-  (message "region 2: (%s %s)"
-           (org-menu--active-region-start)
-           (org-menu--active-region-end))
-  (when (and org-menu--active-region
-             ;; [a,b] and [c,d] overlap if and only if
-             ;; a <= d and b >= c
-             (<= start (org-menu--active-region-end))
-             (>= end (org-menu--active-region-start)))
-    (message "active region!")))
+  (and org-menu--active-region
+       ;; [a,b] and [c,d] overlap if and only if
+       ;; a <= d and b >= c
+       (<= start (org-menu--active-region-end))
+       (>= end (org-menu--active-region-start))))
 
 (defun org-menu--point-outside-active-region-p ()
   "Return t if point is not in the active region.
@@ -154,9 +146,6 @@ If there is no active region, return nil."
   (let ((start (org-menu--active-region-start))
         (end (org-menu--active-region-end))
         (pos (point)))
-    (when (and (org-menu--get-prop 'right-edge)
-               (> pos start))
-      (setq pos (1- pos)))
     (and org-menu--active-region
          (not (<= start pos end)))))
 
@@ -190,19 +179,28 @@ specifying the region."
   "Update the active region.
 If point left the currently active region, update internal
 variables and notify font-lock."
-  (message "updating..")
+  ;; Yeah, really gotta fix the order of update operations.
   (let ((start (org-menu--active-region-start))
         (end (org-menu--active-region-end)))
+    (message "old %s %s %s"
+             start (point) end)
+    (message "old loc: %s"
+             (get-text-property (point) 'org-menu-region))
+    (when org-menu--active-region
+      (org-menu--fontify-buffer start end))
     (when (org-menu--point-outside-active-region-p)
-      (message "left region.")
       ;; We left the region, it's no longer active.
       (setq org-menu--active-region nil)
       ;; Let font-lock recompose the region immediately.
-      (org-menu--fontify-buffer start end))
-    (message "update end."))
+      (org-menu--fontify-buffer start end)
+      (message "fl-loc: %s"
+                 (get-text-property (point) 'org-menu-region))))
 
   (when-let ((new-region (org-menu--set-active-region)))
-    (message "new region found.")
+        (message "new %s %s %s"
+                 (car new-region) (point) (cadr new-region))
+        (message "new loc: %s"
+                 (get-text-property (point) 'org-menu-region))
     (with-silent-modifications
       (apply #'decompose-region new-region))))
 
@@ -245,11 +243,9 @@ on that line."
     (cond
      ;; A match at point?  Throw all composition out the window.
      ((org-menu--active-region-p delim-beg end)
-      (message "decompose!")
       (decompose-region start end)
-      (org-menu--unmark start end))
+      (org-menu--mark-composed start end t))
      (t
-      (message "compose!")
       (compose-region delim-beg delim-end (org-menu--get-src-icon))
       (compose-region delim-end lang-beg ?\s)
       (when (< rest-beg end)
