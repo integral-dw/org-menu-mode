@@ -179,28 +179,17 @@ specifying the region."
   "Update the active region.
 If point left the currently active region, update internal
 variables and notify font-lock."
-  ;; Yeah, really gotta fix the order of update operations.
   (let ((start (org-menu--active-region-start))
         (end (org-menu--active-region-end)))
-    (message "old %s %s %s"
-             start (point) end)
-    (message "old loc: %s"
-             (get-text-property (point) 'org-menu-region))
     (when org-menu--active-region
       (org-menu--fontify-buffer start end))
     (when (org-menu--point-outside-active-region-p)
       ;; We left the region, it's no longer active.
       (setq org-menu--active-region nil)
       ;; Let font-lock recompose the region immediately.
-      (org-menu--fontify-buffer start end)
-      (message "fl-loc: %s"
-                 (get-text-property (point) 'org-menu-region))))
+      (org-menu--fontify-buffer start end)))
 
   (when-let ((new-region (org-menu--set-active-region)))
-        (message "new %s %s %s"
-                 (car new-region) (point) (cadr new-region))
-        (message "new loc: %s"
-                 (get-text-property (point) 'org-menu-region))
     (with-silent-modifications
       (apply #'decompose-region new-region))))
 
@@ -239,7 +228,6 @@ on that line."
         (lang-beg (match-beginning 2))
         (rest-beg (match-beginning 3))
         (end (match-end 0)))
-    (message "font locking")
     (cond
      ;; A match at point?  Throw all composition out the window.
      ((org-menu--active-region-p delim-beg end)
