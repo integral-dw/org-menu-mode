@@ -10,8 +10,9 @@
     t)
 #+END_SRC
 
-#+begin_src C
-  int main () {
-    /* Some trash */
-  }
-#+end_src
+* Indented nonsense
+  #+begin_src C
+    int main () {
+      /* Some bug causing a sneaky segfault */
+    }
+  #+end_src

@@ -1,6 +1,6 @@
 ;;; org-menu.el --- Hide verbose org syntax behind interactive menus  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2020  D. Williams, Rasmus Pank
+;; Copyright (C) 2020  D. Williams, Rasmus Pank Roulund
 
 ;; Author: D. Williams <d.williams@posteo.net>
 ;; Maintainer: D. Williams <d.williams@posteo.net>
@@ -35,6 +35,7 @@
 (require 'org)
 (require 'org-element)
 (require 'subr-x)
+;(require 'org-menu-core)
 
 (defgroup org-menu nil
   "Hide Org syntax behind interactive menus."
@@ -66,6 +67,12 @@ instead."
   :type `(alist :key-type (string :format "Language name: %v")
                 :value-type (character :value ,org-menu-src-default
                                        :format "Menu icon: %v\n")))
+
+(defcustom org-menu-src-end-char ?□ ;;■
+  "Character used for an Org source code END delimiter."
+  :group 'org-menu
+  :type '(character
+          :format "Display ‘#+END_SRC’ as: %v\n"))
 
 
 ;;;; Text Properties and Manipulation
@@ -126,22 +133,22 @@ the region found."
   "Return the value of PROPERY stored in the active region.
 
 PROPERTY should be an optional argument name of the function
-‘org-menu--mark-composed’, as a symbol."
+‘org-menu--mark’, as a symbol."
   (plist-get (cddr org-menu--active-region) property))
 
 ;;; Active Region Predicates
 (defun org-menu--active-region-p (start end)
   "Return t if the region START...END is active.
 If the region has overlap with the active region, treat the whole
-region as active."
+region as active.  If there is no active region, return nil."
   (and org-menu--active-region
        ;; [a,b] and [c,d] overlap if and only if
        ;; a <= d and b >= c
        (<= start (org-menu--active-region-end))
        (>= end (org-menu--active-region-start))))
 
-(defun org-menu--point-outside-active-region-p ()
-  "Return t if point is not in the active region.
+(defun org-menu--left-active-region-p ()
+  "Return t if point left the active region.
 If there is no active region, return nil."
   (let ((start (org-menu--active-region-start))
         (end (org-menu--active-region-end))
@@ -151,7 +158,7 @@ If there is no active region, return nil."
 
 ;;; Manipulating the Region
 
-(defun org-menu--mark-composed (start end &optional right-edge)
+(defun org-menu--mark (start end &optional right-edge)
   "Mark region as composed by Org Menu mode.
 
 START and END are positions (integers or markers) specifying the
@@ -183,7 +190,7 @@ variables and notify font-lock."
         (end (org-menu--active-region-end)))
     (when org-menu--active-region
       (org-menu--fontify-buffer start end))
-    (when (org-menu--point-outside-active-region-p)
+    (when (org-menu--left-active-region-p)
       ;; We left the region, it's no longer active.
       (setq org-menu--active-region nil)
       ;; Let font-lock recompose the region immediately.
@@ -218,7 +225,7 @@ if specified.  If the selected language has no user-defined icon,
 ;;; Fontification
 
 (defun org-menu--prettify-src-begin ()
-  "Prettify the delimiter of an Org source code block.
+  "Prettify the BEGIN delimiter of an Org source code block.
 
 The menu is unprettified automatically when the user is working
 on that line."
@@ -231,16 +238,34 @@ on that line."
     (cond
      ;; A match at point?  Throw all composition out the window.
      ((org-menu--active-region-p delim-beg end)
-      (decompose-region start end)
-      (org-menu--mark-composed start end t))
+      (decompose-region start end))
      (t
       (compose-region delim-beg delim-end (org-menu--get-src-icon))
       (compose-region delim-end lang-beg ?\s)
       (when (< rest-beg end)
-        (compose-region rest-beg end org-menu-symbol))
-      ;; Bolt text props onto region.
-      (org-menu--mark-composed delim-beg end t))))
+        (compose-region rest-beg end org-menu-symbol))))
+    ;; Bolt text props onto region.
+    (org-menu--mark delim-beg end t))
   nil)
+
+(defun org-menu--prettify-src-end ()
+  "Prettify the END delimiter of an Org source code block.
+
+It is unprettified automatically when the user is working
+on that line."
+  (let ((start (match-beginning 0))
+        (delim-beg (match-beginning 1))
+        (end (match-end 0)))
+    (cond
+     ;; A match at point?  Throw all composition out the window.
+     ((org-menu--active-region-p delim-beg end)
+      (decompose-region start end))
+     (t
+      (compose-region delim-beg end org-menu-src-end-char)))
+    ;; Bolt text props onto region.
+    (org-menu--mark delim-beg end t))
+  nil)
+
 
 
 ;;; Predicates
@@ -263,7 +288,15 @@ on that line."
           "\\(?:[ \t]+\\)" ;; garbage
           "\\(?2:\\S-+\\)" ;; language name
           "[ \t]?\\(?3:.*\\)$") ;; rest
-  "Regular expression used to identify Org source code blocks.")
+  "Regular expression used to identify Org source code blocks.
+This regex only matches the BEGIN_SRC delimiter.")
+
+(defvar org-menu--src-end-regexp
+  (concat "^\\(?:[ \t]*\\)" ;; indentation
+          "\\(?1:#\\+\\(end_src\\|END_SRC\\)\\)"  ;; delimiter
+          "$") ;; EOL
+  "Regular expression used to identify Org source code blocks.
+This regex only matches the END_SRC delimiter.")
 
 (defvar-local org-menu--font-lock-keywords nil)
 (defun org-menu--update-font-lock-keywords ()
@@ -274,6 +307,8 @@ cleanup routines."
         `(;; SRC blocks are special, and deserve extra fanciness.
           (,org-menu--src-regexp
            (0 (org-menu--prettify-src-begin)))
+          (,org-menu--src-end-regexp
+           (0 (org-menu--prettify-src-end)))
           ;; TODO: more later.
           )))
 

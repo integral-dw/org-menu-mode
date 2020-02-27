@@ -21,7 +21,7 @@
 
 * About
 ** Origins
-  This package is [[https://pank.eu/blog/pretty-babel-src-blocks.html][based on a brilliant blog post from Rasmus Pank]],
+  This package is [[https://pank.eu/blog/pretty-babel-src-blocks.html][based on a brilliant blog post from Rasmus Pank Roulund]],
   where he formulated a ~prettify-symbols~-based set of functions that
   hide away Org's ~#+BEGIN_BLOCK~ -- ~#+END_BLOCK~ syntax behind a
   [[https://en.wikipedia.org/wiki/Semigraphics][semi-graphical]] interface.  The author expressed dissatisfaction with
