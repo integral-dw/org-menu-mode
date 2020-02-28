@@ -10,6 +10,14 @@
     t)
 #+END_SRC
 
+#+BEGIN_QUOTE
+In the future, people will write all kinds of nonsense and then
+claim that I said it -- especially on the internet.
+
+    ---Albert Einstein
+#+END_QUOTE
+
+
 * Indented nonsense
   #+begin_src C
     int main () {
