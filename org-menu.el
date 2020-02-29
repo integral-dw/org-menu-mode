@@ -48,7 +48,7 @@
   :group 'org-menu
   :type 'character)
 
-(defcustom org-menu-symbol ?☰
+(defcustom org-menu-char ?☰
   "Character used for the menu button."
   :group 'org-menu
   :type 'character)
@@ -73,6 +73,48 @@ instead."
   :group 'org-menu
   :type '(character
           :format "Display ‘#+END_SRC’ as: %v\n"))
+
+(defcustom org-menu-begin-default ?✍
+  "Default icon for generic ‘#+BEGIN_’ Org blocks delimiters.
+This character is used if ‘org-menu-get-begin-character’ finds no
+appropriate entry in ‘org-menu-delimiter-alist’."
+  :group 'org-menu
+  :type 'character)
+
+(defcustom org-menu-end-default org-menu-src-end-char
+  "Default icon for generic ‘#+END_’ Org blocks delimiters.
+This character is used if ‘org-menu-get-end-character’ finds no
+appropriate entry in ‘org-menu-delimiter-alist’."
+  :group 'org-menu
+  :type 'character)
+
+
+(defcustom org-menu-delimiter-alist
+  ;; 🪶 will be a feather/quill in a future update (supposedly)
+  `(,(list 'quote ?🙶 ?🙷) ;; stop highlighting this
+    (verse ?¶ ?⁂))
+  "Alist associating block types with their delimiter characters.
+
+Elements should be of the form:
+  (KEY . (BEGIN-DELIM END-DELIM))
+
+Each KEY should be a symbol specifying the name of the block.
+Each value should be a list of two characters, BEGIN-DELIM being
+used to display the ‘#+BEGIN_’ delimter, END-DELIM being used to
+display the ‘#+END_’ delimiter."
+  :group 'org-menu
+  :type
+  `(alist
+    :key-type (symbol :format "Block type: %v\n")
+    :value-type
+    (list :format "Delimiter list:\n%v"
+          (character :format "‘#+BEGIN_’ delimiter: %v\n"
+                     :value ,org-menu-begin-default)
+          (character :format "‘#+END_’ delimiter: %v\n"
+                     :value ,org-menu-end-default))))
+
+(defvar org-menu-additional-keywords nil
+  "Additional font-lock keywords to be managed by Org Menu mode.")
 
 
 ;;;; Text Properties and Manipulation
@@ -222,6 +264,16 @@ if specified.  If the selected language has no user-defined icon,
     (or (cdr (assoc-string lang org-menu-src-alist t))
         org-menu-src-default)))
 
+(defun org-menu-get-begin-character (block-type)
+  "Return the specified +#BEGIN_BLOCK-TYPE replacement char."
+  (or (elt (assq block-type org-menu-delimiter-alist) 1)
+      org-menu-begin-default))
+
+(defun org-menu-get-end-character (block-type)
+  "Return the specified +#END_BLOCK-TYPE replacement char."
+  (or (elt (assq block-type org-menu-delimiter-alist) 2)
+      org-menu-end-default))
+
 ;;; Fontification
 
 (defun org-menu--prettify-src-begin ()
@@ -243,28 +295,12 @@ on that line."
       (compose-region delim-beg delim-end (org-menu--get-src-icon))
       (compose-region delim-end lang-beg ?\s)
       (when (< rest-beg end)
-        (compose-region rest-beg end org-menu-symbol))))
+        (compose-region rest-beg end org-menu-char))))
     ;; Bolt text props onto region.
     (org-menu--mark delim-beg end t))
   nil)
 
-(defun org-menu--prettify-src-end ()
-  "Prettify the END delimiter of an Org source code block.
-
-It is unprettified automatically when the user is working
-on that line."
-  (let ((start (match-beginning 0))
-        (delim-beg (match-beginning 1))
-        (end (match-end 0)))
-    (cond
-     ;; A match at point?  Throw all composition out the window.
-     ((org-menu--active-region-p delim-beg end)
-      (decompose-region start end))
-     (t
-      (compose-region delim-beg end org-menu-src-end-char)))
-    ;; Bolt text props onto region.
-    (org-menu--mark delim-beg end t))
-  nil)
+;; TODO: handle dynamic blocks
 
 
 
@@ -292,11 +328,11 @@ on that line."
 This regex only matches the BEGIN_SRC delimiter.")
 
 (defvar org-menu--src-end-regexp
-  (concat "^\\(?:[ \t]*\\)" ;; indentation
-          "\\(?1:#\\+\\(end_src\\|END_SRC\\)\\)"  ;; delimiter
-          "$") ;; EOL
+  (concat "^\\(?:[ \t]*\\)"
+          "\\(?1:#\\+\\(end_src\\|END_SRC\\)\\)")
   "Regular expression used to identify Org source code blocks.
 This regex only matches the END_SRC delimiter.")
+
 
 (defvar-local org-menu--font-lock-keywords nil)
 (defun org-menu--update-font-lock-keywords ()
@@ -308,7 +344,8 @@ cleanup routines."
           (,org-menu--src-regexp
            (0 (org-menu--prettify-src-begin)))
           (,org-menu--src-end-regexp
-           (0 (org-menu--prettify-src-end)))
+           (0 (org-menu-prettify-simple-delim org-menu-src-end-char)))
+          ,@(org-menu-simple-delim-keywords 'quote)
           ;; TODO: more later.
           )))
 
