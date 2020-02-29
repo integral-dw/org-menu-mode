@@ -17,6 +17,9 @@ claim that I said it -- especially on the internet.
     ---Albert Einstein
 #+END_QUOTE
 
+#+BeGin_VErse
+Is this a verse?
+#+EnD_VErse
 
 * Indented nonsense
   #+begin_src C
