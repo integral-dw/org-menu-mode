@@ -35,7 +35,8 @@
 (require 'org)
 (require 'org-element)
 (require 'subr-x)
-;(require 'org-menu-core)
+;;(require 'org-menu-fl)
+;;(require 'org-menu-simple)
 
 (defgroup org-menu nil
   "Hide Org syntax behind interactive menus."
@@ -117,139 +118,6 @@ display the #+END_ delimiter."
 
 (defvar org-menu-additional-keywords nil
   "Additional font-lock keywords to be managed by Org Menu mode.")
-
-
-;;;; Text Properties and Manipulation
-;; Here we define the lower level routines operating directly on text
-;; properties.
-
-(defvar org-menu--extra-props
-  '(org-menu-region org-menu-right-edge)
-  "List of text properties for Org Menu mode’s font lock internals.")
-
-;;; Local State Variables
-(defvar-local org-menu--active-region nil
-  "Holds the delimiters of the region composed by Org Menu at point.
-
-If point does not reside in any composed region, it’s value is
-nil.  Otherwise, it’s value is a list of the form:
-
-  (START END . META-PLIST)
-
-where START and END delimit the affected region.
-
-META-PLIST is a property list holding additional information
-about the current region.
-
-This variable is necessary because the \"true\" position of point
-is not accessible from within font-lock.")
-
-;;; Getters and Setters for the Active Region
-(defun org-menu--active-region-start ()
-  "Return the beginning of the active region."
-  (car org-menu--active-region))
-
-(defun org-menu--active-region-end ()
-  "Return the end of the active region."
-  (cadr org-menu--active-region))
-
-(defun org-menu--set-active-region ()
-  "If point is in an Org Menu composed region, make it active.
-If no region could be found, return nil.  Otherwise, return a
-list of the form (START END), containing the delimiting points of
-the region found."
-  (let* ((pos (point))
-         (new-region (get-text-property pos 'org-menu-region))
-         (right-edge nil))
-    ;; If there's no region at point, check the character before.
-    (unless (or new-region (bobp))
-      (setq pos (1- pos))
-      (when (setq right-edge ;; Is it a right-edge region?
-                  (get-text-property pos 'org-menu-right-edge))
-        (setq new-region (get-text-property pos 'org-menu-region)
-              right-edge t)))
-    (when new-region
-      (setq org-menu--active-region
-            `(,@new-region right-edge ,right-edge)))
-    new-region))
-
-(defun org-menu--get-prop (property)
-  "Return the value of PROPERY stored in the active region.
-
-PROPERTY should be an optional argument name of the function
-‘org-menu--mark’, as a symbol."
-  (plist-get (cddr org-menu--active-region) property))
-
-;;; Active Region Predicates
-(defun org-menu--active-region-p (start end)
-  "Return t if the region START...END is active.
-If the region has overlap with the active region, treat the whole
-region as active.  If there is no active region, return nil."
-  (and org-menu--active-region
-       ;; [a,b] and [c,d] overlap if and only if
-       ;; a <= d and b >= c
-       (<= start (org-menu--active-region-end))
-       (>= end (org-menu--active-region-start))))
-
-(defun org-menu--left-active-region-p ()
-  "Return t if point left the active region.
-If there is no active region, return nil."
-  (let ((start (org-menu--active-region-start))
-        (end (org-menu--active-region-end))
-        (pos (point)))
-    (and org-menu--active-region
-         (not (<= start pos end)))))
-
-;;; Manipulating the Region
-
-(defun org-menu--mark (start end &optional right-edge)
-  "Mark region as composed by Org Menu mode.
-
-START and END are positions (integers or markers) specifying the
-region.
-
-If the optional argument RIGHT-EDGE is non-nil, the region will
-be decomposed even when point is immediately after the match,
-much like when setting ‘prettify-symbols-unprettify-at-point’ to
-‘right-edge’.  The only exception to this behavior occurs when
-the right edge belongs to another marked region."
-  (add-text-properties start end
-                       `(org-menu-region ,(list start end)))
-  (when right-edge
-    (add-text-properties start end '(org-menu-right-edge t))))
-
-(defun org-menu--unmark (start end)
-  "Remove markers set by Org Menu mode in region.
-
-START and END are positions (integers or markers)
-specifying the region."
-  (remove-text-properties start end
-                          org-menu--extra-props))
-
-(defun org-menu--update-region ()
-  "Update the active region.
-If point left the currently active region, update internal
-variables and notify font-lock."
-  (let ((start (org-menu--active-region-start))
-        (end (org-menu--active-region-end)))
-    (when org-menu--active-region
-      (org-menu--fontify-buffer start end))
-    (when (org-menu--left-active-region-p)
-      ;; We left the region, it's no longer active.
-      (setq org-menu--active-region nil)
-      ;; Let font-lock recompose the region immediately.
-      (org-menu--fontify-buffer start end)))
-
-  (when-let ((new-region (org-menu--set-active-region)))
-    (with-silent-modifications
-      (apply #'decompose-region new-region))))
-
-(defun org-menu--remove-props ()
-  "Remove all references to Org Menu related text properties in buffer."
-  (dolist (prop org-menu--extra-props)
-    (setq font-lock-extra-managed-props
-          (delq prop font-lock-extra-managed-props)))
-  (org-menu--unmark (point-min) (point-max)))
 
 
 ;;;; Menu Icons and Fontification
