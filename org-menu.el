@@ -35,8 +35,8 @@
 (require 'org)
 (require 'org-element)
 (require 'subr-x)
-;;(require 'org-menu-fl)
-;;(require 'org-menu-simple)
+(require 'org-menu-fl)
+(require 'org-menu-simple)
 
 (declare-function org-menu-simple-delim-keywords
                   "org-menu-simple" (type))

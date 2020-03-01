@@ -47,8 +47,6 @@
 
 ;;; Code:
 
-(require 'org)
-
 (declare-function org-menu-active-region-p "org-menu" (start end))
 (declare-function org-menu-mark "org-menu" (start end &optional right-edge))
 (defvar org-menu-char)
