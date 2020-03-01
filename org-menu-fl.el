@@ -81,6 +81,8 @@
 
 ;;; Code:
 
+(require 'subr-x)
+
 (declare-function org-menu--fontify-buffer
                   "org-menu" (&optional start end))
 
