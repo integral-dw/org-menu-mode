@@ -133,12 +133,16 @@ These properties are removed by ‘org-menu-unmark’.")
 
 
 ;;;; Public Aliases for Font Lock Internals
+(declare-function org-menu-fl--active-region-p
+                  "org-menu-fl" (start end))
 (defalias 'org-menu-active-region-p
   'org-menu-fl--active-region-p
   "Return t if the region START...END is active.
 If the region has overlap with the active region, treat the whole
 region as active.  If there is no active region, return nil.")
 
+(declare-function org-menu-fl--mark
+                  "org-menu-fl" (start end &optional right-edge))
 (defalias 'org-menu-mark
     'org-menu-fl--mark
   "Mark region as composed by Org Menu mode.
@@ -152,6 +156,8 @@ much like when setting ‘prettify-symbols-unprettify-at-point’ to
 ‘right-edge’.  The only exception to this behavior occurs when
 the right edge belongs to another marked region.")
 
+(declare-function org-menu-fl--unmark
+                  "org-menu-fl" (start end))
 (defalias 'org-menu-unmark
     'org-menu-fl--unmark
   "Remove markers set by Org Menu mode in region.
