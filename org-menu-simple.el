@@ -67,7 +67,7 @@ blocks defined by Org Menu) the following code to set
         `(,@(org-menu-simple-delim-keywords 'example)))
 
 See ‘org-menu-delimiter-alist’ for how to control the characters
-used to visualize #+BEGIN_ and #+END_ delimiters."
+used to display #+BEGIN_ and #+END_ delimiters."
   `((,(org-menu-simple-begin-matcher (symbol-name type))
      (0 (org-menu-prettify-simple-delim (quote ,type))))
     (,(org-menu-simple-begin-matcher (symbol-name type))
