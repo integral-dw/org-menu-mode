@@ -64,6 +64,17 @@
 ;;       |                | active region |                    |
 ;;       +---influences---|     info      |<-------sets--------+
 ;;                        +---------------+
+
+;;; Public API:
+;; While most of the code here is not generally intended for
+;; tinkering, there are a few "reliable" functions intended for use.
+;; I will most likely incrementally change "private" functions to
+;; "public" ones as I find uses cases for them outside of other
+;; function definitions within this file.
+;;
+;; ‘org-menu-active-region-p’: Is <region> active?
+;; ‘org-menu-mark’: (font-lock-side): apply text properties to region.
+;; ‘org-menu-unmark’: (font-lock-side): remove all Org Menu text props
 ;;
 
 ;;; Code:
@@ -74,8 +85,11 @@
 
 (defvar org-menu--extra-props
   '(org-menu-region org-menu-right-edge)
-  "List of text properties for Org Menu mode’s font lock internals.")
+  "List of text properties for Org Menu mode’s font lock internals.
+These properties are removed by ‘org-menu-unmark’.")
 
+
+;;;; Active Region
 ;;; Local State Variables
 (defvar-local org-menu--active-region nil
   "Holds the delimiters of the region composed by Org Menu at point.
@@ -126,17 +140,17 @@ the region found."
   "Return the value of PROPERY stored in the active region.
 
 PROPERTY should be an optional argument name of the function
-‘org-menu--mark’, as a symbol."
+‘org-menu-mark’, as a symbol."
   (plist-get (cddr org-menu--active-region) property))
 
 ;;; Active Region Predicates
-(defun org-menu--active-region-p (start end)
+(defun org-menu-active-region-p (start end)
   "Return t if the region START...END is active.
 If the region has overlap with the active region, treat the whole
 region as active.  If there is no active region, return nil."
   (and org-menu--active-region
        ;; [a,b] and [c,d] overlap if and only if
-       ;; a <= d and b >= c
+       ;; a <= d and b >= c (given a<=b,c<=d)
        (<= start (org-menu--active-region-end))
        (>= end (org-menu--active-region-start))))
 
@@ -148,10 +162,12 @@ If there is no active region, return nil."
         (pos (point)))
     (and org-menu--active-region
          (not (<= start pos end)))))
+
 
+;;;; General Region Operations
 ;;; Manipulating the Region
 
-(defun org-menu--mark (start end &optional right-edge)
+(defun org-menu-mark (start end &optional right-edge)
   "Mark region as composed by Org Menu mode.
 
 START and END are positions (integers or markers) specifying the
@@ -167,7 +183,7 @@ the right edge belongs to another marked region."
   (when right-edge
     (add-text-properties start end '(org-menu-right-edge t))))
 
-(defun org-menu--unmark (start end)
+(defun org-menu-unmark (start end)
   "Remove markers set by Org Menu mode in region.
 
 START and END are positions (integers or markers)
@@ -198,7 +214,7 @@ variables and notify font-lock."
   (dolist (prop org-menu--extra-props)
     (setq font-lock-extra-managed-props
           (delq prop font-lock-extra-managed-props)))
-  (org-menu--unmark (point-min) (point-max)))
+  (org-menu-unmark (point-min) (point-max)))
 
 
 (provide 'org-menu-fl)

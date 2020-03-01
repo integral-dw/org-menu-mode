@@ -49,8 +49,8 @@
 
 (require 'org)
 
-(declare-function org-menu--active-region-p "org-menu" (start end))
-(declare-function org-menu--mark "org-menu" (start end &optional right-edge))
+(declare-function org-menu-active-region-p "org-menu" (start end))
+(declare-function org-menu-mark "org-menu" (start end &optional right-edge))
 (defvar org-menu-char)
 
 ;;; Complete Keywords
@@ -133,7 +133,7 @@ on that line."
          (rest-beg (1+ delim-end))
          (end (match-end 0)))
     (cond
-     ((org-menu--active-region-p delim-beg end)
+     ((org-menu-active-region-p delim-beg end)
       (decompose-region start end))
      (t
       (compose-region delim-beg delim-end delim-char)
@@ -142,7 +142,7 @@ on that line."
           (compose-region delim-end rest-beg ?\s))
         (when (< rest-beg end)
           (compose-region rest-beg end org-menu-char)))))
-    (org-menu--mark delim-beg end t))
+    (org-menu-mark delim-beg end t))
   nil)
 
 (provide 'org-menu-simple)

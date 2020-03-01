@@ -159,7 +159,7 @@ on that line."
         (end (match-end 0)))
     (cond
      ;; A match at point?  Throw all composition out the window.
-     ((org-menu--active-region-p delim-beg end)
+     ((org-menu-active-region-p delim-beg end)
       (decompose-region start end))
      (t
       (compose-region delim-beg delim-end (org-menu--get-src-icon))
@@ -167,7 +167,7 @@ on that line."
       (when (< rest-beg end)
         (compose-region rest-beg end org-menu-char))))
     ;; Bolt text props onto region.
-    (org-menu--mark delim-beg end t))
+    (org-menu-mark delim-beg end t))
   nil)
 
 ;; TODO: handle dynamic blocks
