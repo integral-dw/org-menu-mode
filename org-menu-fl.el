@@ -73,11 +73,13 @@
 ;; function definitions within this file.
 ;;
 ;; ‘org-menu-active-region-p’: Is <region> active?
-;; ‘org-menu-mark’: (font-lock-side): apply text properties to region.
-;; ‘org-menu-unmark’: (font-lock-side): remove all Org Menu text props
-;;
+;; ‘org-menu-mark’: Apply text properties to region.
+;; ‘org-menu-unmark’: Remove all Org Menu text props.
 
 ;;; Code:
+
+(declare-function org-menu--fontify-buffer
+                  "org-menu" (&optional start end))
 
 ;;;; Text Properties and Manipulation
 ;; Here we define the lower level routines operating directly on text
@@ -91,7 +93,7 @@ These properties are removed by ‘org-menu-unmark’.")
 
 ;;;; Active Region
 ;;; Local State Variables
-(defvar-local org-menu--active-region nil
+(defvar-local org-menu-fl--active-region nil
   "Holds the delimiters of the region composed by Org Menu at point.
 
 If point does not reside in any composed region, it’s value is
@@ -108,15 +110,15 @@ This variable is necessary because the \"true\" position of point
 is not accessible from within font-lock.")
 
 ;;; Getters and Setters for the Active Region
-(defun org-menu--active-region-start ()
+(defun org-menu-fl--active-region-start ()
   "Return the beginning of the active region."
-  (car org-menu--active-region))
+  (car org-menu-fl--active-region))
 
-(defun org-menu--active-region-end ()
+(defun org-menu-fl--active-region-end ()
   "Return the end of the active region."
-  (cadr org-menu--active-region))
+  (cadr org-menu-fl--active-region))
 
-(defun org-menu--set-active-region ()
+(defun org-menu-fl--set-active-region ()
   "If point is in an Org Menu composed region, make it active.
 If no region could be found, return nil.  Otherwise, return a
 list of the form (START END), containing the delimiting points of
@@ -132,41 +134,57 @@ the region found."
         (setq new-region (get-text-property pos 'org-menu-region)
               right-edge t)))
     (when new-region
-      (setq org-menu--active-region
+      (setq org-menu-fl--active-region
             `(,@new-region right-edge ,right-edge)))
     new-region))
 
-(defun org-menu--get-prop (property)
+(defun org-menu-fl--get-prop (property)
   "Return the value of PROPERY stored in the active region.
 
 PROPERTY should be an optional argument name of the function
 ‘org-menu-mark’, as a symbol."
-  (plist-get (cddr org-menu--active-region) property))
+  (plist-get (cddr org-menu-fl--active-region) property))
+
+(defun org-menu-fl--update-region ()
+  "Update the active region.
+If point left the currently active region, update internal
+variables and notify font-lock."
+  (let ((start (org-menu-fl--active-region-start))
+        (end (org-menu-fl--active-region-end)))
+    (when org-menu-fl--active-region
+      (org-menu--fontify-buffer start end))
+    (when (org-menu-fl--left-active-region-p)
+      ;; We left the region, it's no longer active.
+      (setq org-menu-fl--active-region nil)
+      ;; Let font-lock recompose the region immediately.
+      (org-menu--fontify-buffer start end)))
+
+  (when-let ((new-region (org-menu-fl--set-active-region)))
+    (with-silent-modifications
+      (apply #'decompose-region new-region))))
 
 ;;; Active Region Predicates
 (defun org-menu-active-region-p (start end)
   "Return t if the region START...END is active.
 If the region has overlap with the active region, treat the whole
 region as active.  If there is no active region, return nil."
-  (and org-menu--active-region
+  (and org-menu-fl--active-region
        ;; [a,b] and [c,d] overlap if and only if
        ;; a <= d and b >= c (given a<=b,c<=d)
-       (<= start (org-menu--active-region-end))
-       (>= end (org-menu--active-region-start))))
+       (<= start (org-menu-fl--active-region-end))
+       (>= end (org-menu-fl--active-region-start))))
 
-(defun org-menu--left-active-region-p ()
+(defun org-menu-fl--left-active-region-p ()
   "Return t if point left the active region.
 If there is no active region, return nil."
-  (let ((start (org-menu--active-region-start))
-        (end (org-menu--active-region-end))
+  (let ((start (org-menu-fl--active-region-start))
+        (end (org-menu-fl--active-region-end))
         (pos (point)))
-    (and org-menu--active-region
+    (and org-menu-fl--active-region
          (not (<= start pos end)))))
 
 
 ;;;; General Region Operations
-;;; Manipulating the Region
-
 (defun org-menu-mark (start end &optional right-edge)
   "Mark region as composed by Org Menu mode.
 
@@ -191,31 +209,12 @@ specifying the region."
   (remove-text-properties start end
                           org-menu--extra-props))
 
-(defun org-menu--update-region ()
-  "Update the active region.
-If point left the currently active region, update internal
-variables and notify font-lock."
-  (let ((start (org-menu--active-region-start))
-        (end (org-menu--active-region-end)))
-    (when org-menu--active-region
-      (org-menu--fontify-buffer start end))
-    (when (org-menu--left-active-region-p)
-      ;; We left the region, it's no longer active.
-      (setq org-menu--active-region nil)
-      ;; Let font-lock recompose the region immediately.
-      (org-menu--fontify-buffer start end)))
-
-  (when-let ((new-region (org-menu--set-active-region)))
-    (with-silent-modifications
-      (apply #'decompose-region new-region))))
-
-(defun org-menu--remove-props ()
+(defun org-menu-fl--remove-props ()
   "Remove all references to Org Menu related text properties in buffer."
   (dolist (prop org-menu--extra-props)
     (setq font-lock-extra-managed-props
           (delq prop font-lock-extra-managed-props)))
   (org-menu-unmark (point-min) (point-max)))
-
 
 (provide 'org-menu-fl)
 ;;; org-menu-fl.el ends here
