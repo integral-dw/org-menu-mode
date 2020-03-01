@@ -260,7 +260,7 @@ cleanup routines."
           (,org-menu--src-regexp
            (0 (org-menu--prettify-src-begin)))
           (,org-menu--src-end-regexp
-           (0 (org-menu-prettify-simple-delim org-menu-src-end-char)))
+           (0 (org-menu-simple-prettify-delim org-menu-src-end-char)))
           ,@(org-menu-simple-delim-keywords 'quote)
           ;; TODO: more later.
           )))
