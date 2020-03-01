@@ -67,9 +67,11 @@ blocks defined by Org Menu) the following code to set
 See ‘org-menu-delimiter-alist’ for how to control the characters
 used to display #+BEGIN_ and #+END_ delimiters."
   `((,(org-menu-simple-begin-matcher (symbol-name type))
-     (0 (org-menu-prettify-simple-delim (quote ,type))))
-    (,(org-menu-simple-begin-matcher (symbol-name type))
-     (0 (org-menu-prettify-simple-delim (quote ,type))))))
+     (0 (org-menu-simple-prettify-delim
+	 (org-menu-get-begin-character (quote ,type)))))
+    (,(org-menu-simple-end-matcher (symbol-name type))
+     (0 (org-menu-simple-prettify-delim
+	 (org-menu-get-end-character (quote ,type)) nil t)))))
 
 
 ;;; Keyword Matchers
@@ -103,7 +105,7 @@ itself (without indentation)."
         (matcher
          (concat "^\\(?:[ \t]*\\)" ;; indentation
                  "\\(?1:#\\+END_" block-name "\\)" ;; delimiter
-                 "\\(?:[ \t].*\\)$"))) ;; garbage
+                 "\\(?:[ \t].*\\)?$"))) ;; garbage
     (lambda (limit)
       (let ((case-fold-search t))
         (re-search-forward matcher limit 'move-point)))))
