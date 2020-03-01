@@ -34,7 +34,6 @@
 
 (require 'org)
 (require 'org-element)
-(require 'subr-x)
 (require 'org-menu-fl)
 (require 'org-menu-simple)
 
@@ -222,6 +221,8 @@ on that line."
 
 ;;; Predicates
 
+;; TODO: This function is currently unused.  If you find no use for
+;; it, delete it.
 (defun org-menu-in-src-block-p ()
   "Return t if point is in an Org source code block."
   (save-match-data
@@ -262,8 +263,7 @@ cleanup routines."
           (,org-menu--src-end-regexp
            (0 (org-menu-simple-prettify-delim org-menu-src-end-char)))
           ,@(org-menu-simple-delim-keywords 'quote)
-          ;; TODO: more later.
-          )))
+          ,@(org-menu-simple-delim-keywords 'verse))))
 
 (defun org-menu--fontify-buffer (&optional start end)
   "Fontify the buffer in region START...END.
