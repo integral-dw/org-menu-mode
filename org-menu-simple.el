@@ -37,6 +37,9 @@
 ;;         ;; more keywords here
 ;;         ...))
 
+;; To control which characters are used to visualize #+BEGIN_EXAMPLE
+;; and #+END_EXAMPLE, customize ‘org-menu-delimiter-alist’.
+
 ;; To mess with individual bits of the font-locking process, see the
 ;; functions below.  In contrast to most of the package, these are
 ;; considered "public", and serve as conveniences or templates for
@@ -52,7 +55,19 @@
 
 ;;; Complete Keywords
 (defun org-menu-simple-delim-keywords (type)
-  ""
+  "Return a list of ‘font-lock-keywords’ entries for Org TYPE blocks.
+
+TYPE, a lowercase symbol, should be the name of the type of Org
+block to fontify within Org Menu’s framework.  To add, for
+example, support for EXAMPLE blocks (behaving like the other
+blocks defined by Org Menu) the following code to set
+‘org-menu-additional-keywords’ is sufficient:
+
+  (setq org-menu-additional-keywords
+        `(,@(org-menu-simple-delim-keywords 'example)))
+
+See ‘org-menu-delimiter-alist’ for how to control the characters
+used to visualize #+BEGIN_ and #+END_ delimiters."
   `((,(org-menu-simple-begin-matcher (symbol-name type))
      (0 (org-menu-prettify-simple-delim (quote ,type))))
     (,(org-menu-simple-begin-matcher (symbol-name type))
