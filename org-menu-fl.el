@@ -72,6 +72,9 @@
 ;; "public" ones as I find uses cases for them outside of other
 ;; function definitions within this file.
 ;;
+;; The names below are defined in the main file instead of here to
+;; make package-lint happy.
+;;
 ;; ‘org-menu-active-region-p’: Is <region> active?
 ;; ‘org-menu-mark’: Apply text properties to region.
 ;; ‘org-menu-unmark’: Remove all Org Menu text props.
@@ -81,16 +84,8 @@
 (declare-function org-menu--fontify-buffer
                   "org-menu" (&optional start end))
 
-;;;; Text Properties and Manipulation
-;; Here we define the lower level routines operating directly on text
-;; properties.
+(defvar org-menu--extra-props)
 
-(defvar org-menu--extra-props
-  '(org-menu-region org-menu-right-edge)
-  "List of text properties for Org Menu mode’s font lock internals.
-These properties are removed by ‘org-menu-unmark’.")
-
-
 ;;;; Active Region
 ;;; Local State Variables
 (defvar-local org-menu-fl--active-region nil
@@ -164,10 +159,13 @@ variables and notify font-lock."
       (apply #'decompose-region new-region))))
 
 ;;; Active Region Predicates
-(defun org-menu-active-region-p (start end)
+(defun org-menu-fl--active-region-p (start end)
   "Return t if the region START...END is active.
 If the region has overlap with the active region, treat the whole
-region as active.  If there is no active region, return nil."
+region as active.  If there is no active region, return nil.
+
+Please do not use this function in your own code; use
+‘org-menu-active-region-p’ instead."
   (and org-menu-fl--active-region
        ;; [a,b] and [c,d] overlap if and only if
        ;; a <= d and b >= c (given a<=b,c<=d)
@@ -185,7 +183,7 @@ If there is no active region, return nil."
 
 
 ;;;; General Region Operations
-(defun org-menu-mark (start end &optional right-edge)
+(defun org-menu-fl--mark (start end &optional right-edge)
   "Mark region as composed by Org Menu mode.
 
 START and END are positions (integers or markers) specifying the
@@ -195,17 +193,23 @@ If the optional argument RIGHT-EDGE is non-nil, the region will
 be decomposed even when point is immediately after the match,
 much like when setting ‘prettify-symbols-unprettify-at-point’ to
 ‘right-edge’.  The only exception to this behavior occurs when
-the right edge belongs to another marked region."
+the right edge belongs to another marked region.
+
+Please do not use this function in your own code; use
+‘org-menu-mark’ instead."
   (add-text-properties start end
                        `(org-menu-region ,(list start end)))
   (when right-edge
     (add-text-properties start end '(org-menu-right-edge t))))
 
-(defun org-menu-unmark (start end)
+(defun org-menu-fl--unmark (start end)
   "Remove markers set by Org Menu mode in region.
 
 START and END are positions (integers or markers)
-specifying the region."
+specifying the region.
+
+Please do not use this function in your own code; use
+‘org-menu-unmark’ instead."
   (remove-text-properties start end
                           org-menu--extra-props))
 
@@ -214,7 +218,7 @@ specifying the region."
   (dolist (prop org-menu--extra-props)
     (setq font-lock-extra-managed-props
           (delq prop font-lock-extra-managed-props)))
-  (org-menu-unmark (point-min) (point-max)))
+  (org-menu-fl--unmark (point-min) (point-max)))
 
 (provide 'org-menu-fl)
 ;;; org-menu-fl.el ends here

@@ -38,6 +38,13 @@
 ;;(require 'org-menu-fl)
 ;;(require 'org-menu-simple)
 
+(declare-function org-menu-simple-delim-keywords
+                  "org-menu-simple" (type))
+(declare-function org-menu-fl--update-region
+                  "org-menu-fl" ())
+(declare-function org-menu-fl--remove-props
+                  "org-menu-fl" ())
+
 (defgroup org-menu nil
   "Hide Org syntax behind interactive menus."
   :group 'org-appearance)
@@ -118,6 +125,39 @@ display the #+END_ delimiter."
 
 (defvar org-menu-additional-keywords nil
   "Additional font-lock keywords to be managed by Org Menu mode.")
+
+(defvar org-menu--extra-props
+  '(org-menu-region org-menu-right-edge)
+  "List of text properties for Org Menu mode’s font lock internals.
+These properties are removed by ‘org-menu-unmark’.")
+
+
+;;;; Public Aliases for Font Lock Internals
+(defalias 'org-menu-active-region-p
+  'org-menu-fl--active-region-p
+  "Return t if the region START...END is active.
+If the region has overlap with the active region, treat the whole
+region as active.  If there is no active region, return nil.")
+
+(defalias 'org-menu-mark
+    'org-menu-fl--mark
+  "Mark region as composed by Org Menu mode.
+
+START and END are positions (integers or markers) specifying the
+region.
+
+If the optional argument RIGHT-EDGE is non-nil, the region will
+be decomposed even when point is immediately after the match,
+much like when setting ‘prettify-symbols-unprettify-at-point’ to
+‘right-edge’.  The only exception to this behavior occurs when
+the right edge belongs to another marked region.")
+
+(defalias 'org-menu-unmark
+    'org-menu-fl--unmark
+  "Remove markers set by Org Menu mode in region.
+
+START and END are positions (integers or markers)
+specifying the region.")
 
 
 ;;;; Menu Icons and Fontification
@@ -255,13 +295,13 @@ the mode if ARG is omitted or nil."
                 (append font-lock-extra-managed-props org-menu--extra-props))
     ;; Trigger interactive updates
     (add-hook 'post-command-hook
-              #'org-menu--update-region nil t)
+              #'org-menu-fl--update-region nil t)
     (org-menu--fontify-buffer))
    ;; Clean up remaining variables.
    (t
     (font-lock-remove-keywords nil org-menu--font-lock-keywords)
-    (org-menu--remove-props)
-    (remove-hook 'post-command-hook #'org-menu--update-region t)
+    (org-menu-fl--remove-props)
+    (remove-hook 'post-command-hook #'org-menu-fl--update-region t)
     (setq org-menu--font-lock-keywords
           (default-value 'org-menu--font-lock-keywords))
     (org-menu--fontify-buffer))))
