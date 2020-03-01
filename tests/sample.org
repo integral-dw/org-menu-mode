@@ -1,11 +1,10 @@
-
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp -r
   (defun mwe (x)
     "A minimal function.
   ,* This tests whether Org auto-escapes.
   ,,* This too."
     (cond
-     (x (message "x is non-nil"))
+     (x (message "x is non-nil")) (ref:nonnil)
      (t (message "x is nil")))
     t)
 #+END_SRC
@@ -19,7 +18,7 @@ claim that I said it -- especially on the internet.
 
 #+BeGin_VErse
 Is this a verse?
-#+EnD_VErse
+#+EnD_Verse
 
 * Indented nonsense
   #+begin_src C
