@@ -8,9 +8,8 @@
   the current state of affairs.
 
   *Remark:* This package is not yet in what I would consider a complete
-  first draft state.  It's not like /nothing/ works right now, but not
-  much.  It will take a little while before this package is even
-  usable for testing purposes.
+  first draft state.  It will take a little while before this package
+  is even usable for testing purposes.
 
 * NEWS
 ** =2019-02-23=
@@ -18,6 +17,20 @@
    first draft state, but it compiles, survives ~checkdoc~'s scrutiny
    and runs through ~package-lint~ without problem.  Now I just have to
    keep it that way.
+** =2019-03-01=
+   Currently, the package is split across three files to ease the task
+   of maintaining the structure of the code.  The three files in
+   question are:
+   * =org-menu.el= :: The main body.
+   * =org-menu-fl.el= :: A collection of low-level buffer operations.
+   * =org-menu-simple.el= :: A friendlier interface for the above.
+
+   The features implemented now are working comparably well, but still
+   behave weird in some edge cases (in particular, random point
+   movement occasionally confusing the mode).  I will have to do some
+   "field-testing" to properly pin down the oddities.  Once that
+   works, I will promote the package to a "first draft" (version
+   *0.1.0*).
 
 * About
 ** Origins
