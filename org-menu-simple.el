@@ -132,6 +132,7 @@ on that line."
          (delim-end (match-end subexp))
          (rest-beg (1+ delim-end))
          (end (match-end 0)))
+    (org-menu-mark delim-beg end t)
     (cond
      ((org-menu-active-region-p delim-beg end)
       (decompose-region start end))
@@ -141,8 +142,7 @@ on that line."
         (when (< delim-end end)
           (compose-region delim-end rest-beg ?\s))
         (when (< rest-beg end)
-          (compose-region rest-beg end org-menu-char)))))
-    (org-menu-mark delim-beg end t))
+          (compose-region rest-beg end org-menu-char))))))
   nil)
 
 (provide 'org-menu-simple)
