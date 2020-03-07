@@ -126,7 +126,7 @@ display the #+END_ delimiter."
   "Additional font-lock keywords to be managed by Org Menu mode.")
 
 (defvar org-menu--extra-props
-  '(org-menu-region org-menu-right-edge)
+  '(org-menu-region org-menu-right-edge org-menu-meta)
   "List of text properties for Org Menu mode’s font lock internals.
 These properties are removed by ‘org-menu-unmark’.")
 
@@ -134,11 +134,12 @@ These properties are removed by ‘org-menu-unmark’.")
 ;;;; Public Aliases for Font Lock Internals
 (declare-function org-menu-fl--active-region-p
                   "org-menu-fl" (start end))
+
 (defalias 'org-menu-active-region-p
   'org-menu-fl--active-region-p
   "Return t if the region START...END is active.
-If the region has overlap with the active region, treat the whole
-region as active.  If there is no active region, return nil.")
+A region is considered active if the value of point (outside of
+font-lock) resides within START...END.")
 
 (declare-function org-menu-fl--mark
                   "org-menu-fl" (start end &optional right-edge))
@@ -202,6 +203,7 @@ on that line."
         (lang-beg (match-beginning 2))
         (rest-beg (match-beginning 3))
         (end (match-end 0)))
+    (org-menu-mark delim-beg end t)
     (cond
      ;; A match at point?  Throw all composition out the window.
      ((org-menu-active-region-p delim-beg end)
@@ -210,9 +212,7 @@ on that line."
       (compose-region delim-beg delim-end (org-menu--get-src-icon))
       (compose-region delim-end lang-beg ?\s)
       (when (< rest-beg end)
-        (compose-region rest-beg end org-menu-char))))
-    ;; Bolt text props onto region.
-    (org-menu-mark delim-beg end t))
+        (compose-region rest-beg end org-menu-char)))))
   nil)
 
 ;; TODO: handle dynamic blocks
@@ -233,23 +233,26 @@ on that line."
 
 
 ;;; Font Lock
-
-;; TODO: Make matcher a case-insensitive function instead of a regex.
 (defvar org-menu--src-regexp
   (concat "^\\(?:[ \t]*\\)" ;; indentation
-          "\\(?1:#\\+\\(begin_src\\|BEGIN_SRC\\)\\)"  ;; delimiter
+          "\\(?1:#\\+begin_src\\)"  ;; delimiter
           "\\(?:[ \t]+\\)" ;; garbage
           "\\(?2:\\S-+\\)" ;; language name
-          "[ \t]?\\(?3:.*\\)$") ;; rest
-  "Regular expression used to identify Org source code blocks.
-This regex only matches the BEGIN_SRC delimiter.")
+          "\\(?3:[ \t].*\\)?$") ;; rest
+  "Regular expression matching Org’s #+BEGIN_SRC delimiter.")
 
-(defvar org-menu--src-end-regexp
-  (concat "^\\(?:[ \t]*\\)"
-          "\\(?1:#\\+\\(end_src\\|END_SRC\\)\\)")
-  "Regular expression used to identify Org source code blocks.
-This regex only matches the END_SRC delimiter.")
+(defun org-menu--match-begin-src (limit)
+  "Matcher function used to identify Org source code blocks.
+This regex only matches the BEGIN_SRC delimiter.
 
+This function takes a single argument LIMIT, and serves as a
+‘font-lock-keywords’ MATCHER argument, which see.
+
+The matcher provides three SUBEXPressions, 1 being the delimiter
+itself (without indentation), 2 being the programming language,
+and 3 being the rest of the line."
+  (let ((case-fold-search t))
+    (re-search-forward org-menu--src-regexp limit t)))
 
 (defvar-local org-menu--font-lock-keywords nil)
 (defun org-menu--update-font-lock-keywords ()
@@ -258,9 +261,9 @@ You should not call this function to avoid confusing this mode's
 cleanup routines."
   (setq org-menu--font-lock-keywords
         `(;; SRC blocks are special, and deserve extra fanciness.
-          (,org-menu--src-regexp
+          (org-menu--match-begin-src
            (0 (org-menu--prettify-src-begin)))
-          (,org-menu--src-end-regexp
+          (,(org-menu-simple-end-matcher "src")
            (0 (org-menu-simple-prettify-delim org-menu-src-end-char)))
           ,@(org-menu-simple-delim-keywords 'quote)
           ,@(org-menu-simple-delim-keywords 'verse))))
