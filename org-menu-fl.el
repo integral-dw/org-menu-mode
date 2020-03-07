@@ -106,6 +106,12 @@ about the current region.
 This variable is necessary because the \"true\" position of point
 is not accessible from within font-lock.")
 
+(defvar-local org-menu-fl--point nil
+  "Holds the last recorded value of point.
+
+This variable is used if the specific cursor position is
+relevant to a function called from within font-lock.")
+
 ;;; Getters and Setters for the Active Region
 (defun org-menu-fl--active-region-start ()
   "Return the beginning of the active region."
@@ -115,14 +121,36 @@ is not accessible from within font-lock.")
   "Return the end of the active region."
   (cadr org-menu-fl--active-region))
 
-(defun org-menu-fl--set-active-region ()
+(defun org-menu-fl--recompute-region (pos)
+  "Force font-lock to update the active region metadata near point.
+The argument POS is the exact buffer position to extract text
+properties from.  Return the new value of the text property
+‘org-menu-region’ found at POS.
+
+This function is used internally to account for stale region
+information caused by significant changes to the buffer’s
+contents since the last time font-lock updated the region’s
+metadata."
+  (org-menu--fontify-buffer (line-beginning-position)
+                            (line-end-position))
+  (get-text-property pos 'org-menu-region))
+
+(defun org-menu-fl--set-active-region (&optional no-font-lock)
   "If point is in an Org Menu composed region, make it active.
 If no region could be found, return nil.  Otherwise, return a
 list of the form (START END), containing the delimiting points of
-the region found."
-  (let* ((pos (point))
+the region found.
+
+Since the region information found at point may be outdated (for
+example because of insertions since the last invocation of
+font-lock), force font-lock to update the region’s metadata.
+
+If the optional argument NO-FONT-LOCK is non-nil, assume the
+region information at point to be unconditionally up to date.
+This is useful to avoid recursive invocations of font-lock."
+  (let* ((pos org-menu-fl--point)
          (new-region (get-text-property pos 'org-menu-region))
-         (right-edge nil))
+         (right-edge (get-text-property pos 'org-menu-right-edge)))
     ;; If there's no region at point, check the character before.
     (unless (or new-region (bobp))
       (setq pos (1- pos))
@@ -130,9 +158,15 @@ the region found."
                   (get-text-property pos 'org-menu-right-edge))
         (setq new-region (get-text-property pos 'org-menu-region)
               right-edge t)))
-    (when new-region
+    (cond
+     (new-region
+      (unless no-font-lock
+        (message "updating..")
+        (setq new-region (org-menu-fl--recompute-region pos)))
       (setq org-menu-fl--active-region
             `(,@new-region right-edge ,right-edge)))
+     (t
+      (setq org-menu-fl--active-region nil)))
     new-region))
 
 (defun org-menu-fl--get-prop (property)
@@ -142,46 +176,38 @@ PROPERTY should be an optional argument name of the function
 ‘org-menu-mark’, as a symbol."
   (plist-get (cddr org-menu-fl--active-region) property))
 
+
+(defun org-menu-fl--update-point ()
+  "Update the value of point accessed by font-lock internals."
+  (setq org-menu-fl--point (point)))
+
+;;ps also has the issue with prettyfying at point while typing.
 (defun org-menu-fl--update-region ()
   "Update the active region.
 If point left the currently active region, update internal
 variables and notify font-lock."
+  (message "begin post-command")
+  (org-menu-fl--update-point)
   (let ((start (org-menu-fl--active-region-start))
         (end (org-menu-fl--active-region-end)))
     (when org-menu-fl--active-region
-      (org-menu--fontify-buffer start end))
-    (when (org-menu-fl--left-active-region-p)
-      ;; We left the region, it's no longer active.
-      (setq org-menu-fl--active-region nil)
-      ;; Let font-lock recompose the region immediately.
-      (org-menu--fontify-buffer start end)))
-
-  (when-let ((new-region (org-menu-fl--set-active-region)))
-    (with-silent-modifications
-      (apply #'decompose-region new-region))))
+      (unless (org-menu-fl--active-region-p start end)
+        ;; We have left the region.
+        ;; Let font-lock recompose the region immediately.
+        (org-menu--fontify-buffer start end))))
+  (org-menu-fl--set-active-region)
+  (message "end post-command"))
 
 ;;; Active Region Predicates
 (defun org-menu-fl--active-region-p (start end)
   "Return t if the region START...END is active.
-If the region has overlap with the active region, treat the whole
-region as active.  If there is no active region, return nil.
+A region is considered active if the value of point (outside of
+font-lock) resides within START...END.
 
 Please do not use this function in your own code; use
 ‘org-menu-active-region-p’ instead."
-  (and org-menu-fl--active-region
-       ;; [a,b] and [c,d] overlap if and only if
-       ;; a <= d and b >= c (given a<=b,c<=d)
-       (<= start (org-menu-fl--active-region-end))
-       (>= end (org-menu-fl--active-region-start))))
+  (<= start org-menu-fl--point end))
 
-(defun org-menu-fl--left-active-region-p ()
-  "Return t if point left the active region.
-If there is no active region, return nil."
-  (let ((start (org-menu-fl--active-region-start))
-        (end (org-menu-fl--active-region-end))
-        (pos (point)))
-    (and org-menu-fl--active-region
-         (not (<= start pos end)))))
 
 
 ;;;; General Region Operations
@@ -199,10 +225,10 @@ the right edge belongs to another marked region.
 
 Please do not use this function in your own code; use
 ‘org-menu-mark’ instead."
-  (add-text-properties start end
-                       `(org-menu-region ,(list start end)))
-  (when right-edge
-    (add-text-properties start end '(org-menu-right-edge t))))
+  (add-text-properties
+   start end
+   `(org-menu-region ,(list start end)
+                     org-menu-right-edge ,(and right-edge t))))
 
 (defun org-menu-fl--unmark (start end)
   "Remove markers set by Org Menu mode in region.
