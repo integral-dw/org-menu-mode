@@ -48,6 +48,41 @@
   "Hide Org syntax behind interactive menus."
   :group 'org-appearance)
 
+;;;; Public Aliases for Font Lock Internals
+(declare-function org-menu-fl--active-region-p
+                  "org-menu-fl" (start end))
+(declare-function org-menu-fl--mark
+                  "org-menu-fl" (start end &optional right-edge))
+(declare-function org-menu-fl--unmark
+                  "org-menu-fl" (start end))
+
+(defalias 'org-menu-active-region-p
+  'org-menu-fl--active-region-p
+  "Return t if the region START...END is active.
+A region is considered active if the value of point (outside of
+font-lock) resides within START...END.")
+
+(defalias 'org-menu-mark
+    'org-menu-fl--mark
+  "Mark region as composed by Org Menu mode.
+
+START and END are positions (integers or markers) specifying the
+region.
+
+If the optional argument RIGHT-EDGE is non-nil, the region will
+be decomposed even when point is immediately after the match,
+much like when setting ‘prettify-symbols-unprettify-at-point’ to
+‘right-edge’.  The only exception to this behavior occurs when
+the right edge belongs to another marked region.")
+
+(defalias 'org-menu-unmark
+    'org-menu-fl--unmark
+  "Remove markers set by Org Menu mode in region.
+
+START and END are positions (integers or markers)
+specifying the region.")
+
+
 ;;;; Custom Variables
 
 (defcustom org-menu-src-default ?🖉
@@ -129,41 +164,6 @@ display the #+END_ delimiter."
   '(org-menu-region org-menu-right-edge org-menu-meta)
   "List of text properties for Org Menu mode’s font lock internals.
 These properties are removed by ‘org-menu-unmark’.")
-
-
-;;;; Public Aliases for Font Lock Internals
-(declare-function org-menu-fl--active-region-p
-                  "org-menu-fl" (start end))
-
-(defalias 'org-menu-active-region-p
-  'org-menu-fl--active-region-p
-  "Return t if the region START...END is active.
-A region is considered active if the value of point (outside of
-font-lock) resides within START...END.")
-
-(declare-function org-menu-fl--mark
-                  "org-menu-fl" (start end &optional right-edge))
-(defalias 'org-menu-mark
-    'org-menu-fl--mark
-  "Mark region as composed by Org Menu mode.
-
-START and END are positions (integers or markers) specifying the
-region.
-
-If the optional argument RIGHT-EDGE is non-nil, the region will
-be decomposed even when point is immediately after the match,
-much like when setting ‘prettify-symbols-unprettify-at-point’ to
-‘right-edge’.  The only exception to this behavior occurs when
-the right edge belongs to another marked region.")
-
-(declare-function org-menu-fl--unmark
-                  "org-menu-fl" (start end))
-(defalias 'org-menu-unmark
-    'org-menu-fl--unmark
-  "Remove markers set by Org Menu mode in region.
-
-START and END are positions (integers or markers)
-specifying the region.")
 
 
 ;;;; Menu Icons and Fontification
