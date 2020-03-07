@@ -7,6 +7,7 @@
 
 EMACS = emacs
 ELC = $(EMACS) -Q -batch -L .
+EFLAGS = -l tests/om-listener.el
 
 org-menu-objects = org-menu.elc org-menu-simple.elc org-menu-fl.elc
 
@@ -20,8 +21,8 @@ org-menu: $(org-menu-objects)
 %.elc: %.el
 	$(ELC) -f batch-byte-compile $<
 
-test-run:
-	$(EMACS) -Q -L . -l tests/minimal-setup.el tests/sample.org
+test-run: org-menu
+	$(EMACS) -Q -L . -l tests/minimal-setup.el $(EFLAGS) tests/sample.org
 
 clean:
 	-rm *.elc
