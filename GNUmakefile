@@ -17,6 +17,7 @@ org-menu-objects = org-menu.elc org-menu-simple.elc org-menu-fl.elc
 .PHONY: org-menu clean test-run
 # define main goal of make
 org-menu: $(org-menu-objects)
+org-menu.elc: org-menu-simple.elc org-menu-fl.elc
 
 %.elc: %.el
 	$(ELC) -f batch-byte-compile $<
