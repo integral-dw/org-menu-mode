@@ -161,7 +161,6 @@ This is useful to avoid recursive invocations of font-lock."
     (cond
      (new-region
       (unless no-font-lock
-        (message "updating..")
         (setq new-region (org-menu-fl--recompute-region pos)))
       (setq org-menu-fl--active-region
             `(,@new-region right-edge ,right-edge)))
@@ -186,7 +185,6 @@ PROPERTY should be an optional argument name of the function
   "Update the active region.
 If point left the currently active region, update internal
 variables and notify font-lock."
-  (message "begin post-command")
   (org-menu-fl--update-point)
   (let ((start (org-menu-fl--active-region-start))
         (end (org-menu-fl--active-region-end)))
@@ -195,8 +193,7 @@ variables and notify font-lock."
         ;; We have left the region.
         ;; Let font-lock recompose the region immediately.
         (org-menu--fontify-buffer start end))))
-  (org-menu-fl--set-active-region)
-  (message "end post-command"))
+  (org-menu-fl--set-active-region))
 
 ;;; Active Region Predicates
 (defun org-menu-fl--active-region-p (start end)
